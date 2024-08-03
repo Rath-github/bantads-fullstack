@@ -1,0 +1,196 @@
+version: "3"
+
+services:
+  front:
+    image: "front:latest"
+    container_name: "bantads-front"
+    build:
+      context: ./front
+      dockerfile: Dockerfile
+    ports:
+      - "4200:4200"
+    volumes:
+      - ./front:/app:rw
+  auth:
+    networks:
+      - auth
+    image: "auth:latest"
+    build:
+      context: ./back/auth
+    volumes:
+      - ./back/auth/:/app
+    depends_on:
+      - auth-db
+      - broker
+    container_name: bantads-auth
+    ports:
+      - "5000:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://auth-db:5432/postgres
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+  auth-db:
+    networks:
+      - auth
+    image: "postgres:13.1-alpine"
+    container_name: bantads-auth-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+  cliente:
+    networks:
+      - cliente
+      - account
+    image: "cliente:latest"
+    build:
+      context: ./back/cliente
+    volumes:
+      - ./back/cliente/:/app
+    depends_on:
+      - cliente-db
+    container_name: bantads-cliente
+    ports:
+      - "5001:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://cliente-db:5432/postgres
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+  cliente-db:
+    networks:
+      - cliente
+    image: "postgres:13.1-alpine"
+    container_name: bantads-cliente-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+  gerente:
+    networks:
+      - gerente
+    image: "gerente:latest"
+    build:
+      context: ./back/gerente
+    volumes:
+      - ./back/gerente/:/app
+    depends_on:
+      - gerente-db
+    container_name: bantads-gerente
+    ports:
+      - "5002:8080"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://gerente-db:5432/postgres
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+  gerente-db:
+    networks:
+      - gerente
+    image: "postgres:13.1-alpine"
+    container_name: bantads-gerente-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+  broker:
+    networks:
+      - auth
+      - cliente
+      - account
+      - gerente
+    container_name: bantads-broker
+    image: rabbitmq:3.10-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+      - "15692:15692"
+  account:
+    image: "account:latest"
+    container_name: bantads-account
+    networks:
+      - account
+      - cliente
+    build:
+      context: ./back/account
+    depends_on:
+      - account-db
+    volumes:
+      - ./back/account/:/app
+    ports:
+      - "5003:5000"
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://account-db:5432/postgres
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+  account-db:
+    networks:
+      - account
+    container_name: bantads-account-db
+    image: "postgres:13.1-alpine"
+    volumes:
+      - ./bds/account/init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+    ports:
+      - "5433:5432"
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    networks:
+      - auth
+      - cliente
+      - gerente
+      - account
+    restart: unless-stopped
+
+  saga:
+    networks:
+      - auth
+      - cliente
+      - account
+      - gerente
+      - saga
+    image: "saga:latest"
+    build:
+      context: ./back/saga
+    container_name: bantads-saga
+    ports:
+      - "3030:3030"
+    volumes:
+      - ./back/saga:/app
+  gateway:
+    networks:
+      - auth
+      - cliente
+      - account
+      - gerente
+    image: "gateway:latest"
+    build:
+      context: ./back/gateway
+      dockerfile: Dockerfile
+    volumes:
+      - ./back/gateway/:/app
+      - /app/node_modules
+    container_name: bantads-gateway
+    ports:
+      - "3000:3000"
+
+networks:
+  auth:
+    driver: bridge
+  cliente:
+    driver: bridge
+  gerente:
+    driver: bridge
+  account:
+    name: account
+    driver: bridge
+  saga:
+    driver: bridge
