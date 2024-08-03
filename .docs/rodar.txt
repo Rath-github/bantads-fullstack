@@ -1,0 +1,21 @@
+Como iniciar depois que o projeto tá rodando
+
+DEVE SE INSERIR O ADMIN DIRETAMENTE NO BD 
+EX:
+INSERT INTO login(password,email,user_id,role) values  (
+
+    'admin',
+    'admin@admin.com',
+    0,
+    'ADMIN'
+);
+
+LOGAR COMO ADMIN E INSERIR GERENTE
+
+O LOGIN DO GERENTE É O EMAIL E O CPF SEM PONTUAÇÃO
+EX:
+    EMAIL
+    CPF SEM PONTUAÇÕES = "70524301000"
+
+CADASTRA CLIENTE
+LOGA COMO GERENTE E APROVA CLIENTE
